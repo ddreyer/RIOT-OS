@@ -109,6 +109,7 @@ int timer_init(tim_t dev, unsigned long freq, timer_cb_t cb, void *arg)
 #else
         /* sourced by 8MHz with Presc 8 results in 1Mhz clk */
         TIMER_1_DEV.CTRLA.bit.PRESCALER = TC_CTRLA_PRESCALER_DIV8_Val;
+        TIMER_1_DEV.CTRLA.bit.RUNSTDBY = 1; //**** CS294-144
 #endif
         /* choose normal frequency operation */
         TIMER_1_DEV.CTRLA.bit.WAVEGEN = TC_CTRLA_WAVEGEN_NFRQ_Val;

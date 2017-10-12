@@ -66,7 +66,7 @@ static void clk_init(void)
     /* configure internal 8MHz oscillator to run without prescaler */
     SYSCTRL->OSC8M.bit.PRESC = 0;
     SYSCTRL->OSC8M.bit.ONDEMAND = 1;
-    SYSCTRL->OSC8M.bit.RUNSTDBY = 0;
+    SYSCTRL->OSC8M.bit.RUNSTDBY = 1; //**** CS294-144
     SYSCTRL->OSC8M.bit.ENABLE = 1;
     while (!(SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_OSC8MRDY)) {}
 #endif
@@ -182,6 +182,7 @@ static void clk_init(void)
                         GCLK_GENDIV_ID(0));
     GCLK->GENCTRL.reg = (GCLK_GENCTRL_GENEN |
                          GCLK_GENCTRL_SRC_OSC8M |
+                         GCLK_GENCTRL_RUNSTDBY |  //**** CS294-144
                          GCLK_GENCTRL_ID(0));
 #endif
 
