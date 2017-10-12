@@ -44,8 +44,8 @@ static inline void _irq_enable(tim_t dev);
  */
 int timer_init(tim_t dev, unsigned long freq, timer_cb_t cb, void *arg)
 {
-    /* at the moment, the timer can only run at 1MHz */
-    if (freq != 1000000ul) {
+    /* at the moment, the timer can only run at 1MHz or 32kHz */
+    if (freq != 1000000ul && freq != 32768ul) { //**** CS294-144
         return -1;
     }
 
@@ -107,8 +107,8 @@ int timer_init(tim_t dev, unsigned long freq, timer_cb_t cb, void *arg)
         /* PLL/DFLL: sourced by 1MHz and prescaler 1 to reach 1MHz */
         TIMER_1_DEV.CTRLA.bit.PRESCALER = TC_CTRLA_PRESCALER_DIV1_Val;
 #else
-        /* sourced by 8MHz with Presc 8 results in 1Mhz clk */
-        TIMER_1_DEV.CTRLA.bit.PRESCALER = TC_CTRLA_PRESCALER_DIV8_Val;
+        /* sourced by 8MHz with Presc 1 results in 32khz clk */
+        TIMER_1_DEV.CTRLA.bit.PRESCALER = TC_CTRLA_PRESCALER_DIV1_Val; //**** CS294-144
 #endif
         TIMER_1_DEV.CTRLA.bit.RUNSTDBY = 1; //**** CS294-144
         /* choose normal frequency operation */

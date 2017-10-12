@@ -44,6 +44,7 @@ extern "C" {
  * Assign the xtimer source
  */
 #define XTIMER_DEV                     TIMER_1
+#define XTIMER_HZ                      32768ul //**** CS294-144
 #define XTIMER_CHAN                    (0)
 
  /**
