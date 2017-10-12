@@ -129,6 +129,9 @@ static void *_gnrc_netdev_thread(void *args)
 
     /* initialize low-level driver */
     dev->driver->init(dev);
+    
+    netopt_state_t sleepstate = NETOPT_STATE_SLEEP; //**** CS294-144
+    dev->driver->set(dev, NETOPT_STATE, &sleepstate, sizeof(netopt_state_t)); //**** CS294-144
 
     /* start the event loop */
     while (1) {
