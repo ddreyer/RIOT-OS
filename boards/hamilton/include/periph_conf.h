@@ -62,7 +62,7 @@ extern "C" {
  * @{
  */
 
-#define CLOCK_USE_PLL       (1)
+#define CLOCK_USE_PLL       (0) //**** CS294-144
 
 #if CLOCK_USE_PLL
 /* edit these values to adjust the PLL output frequency */
