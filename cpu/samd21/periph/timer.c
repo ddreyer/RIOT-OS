@@ -63,7 +63,7 @@ int timer_init(tim_t dev, unsigned long freq, timer_cb_t cb, void *arg)
     /* configure GCLK0 to feed TC3, TC4 and TC5 */;
     GCLK->CLKCTRL.reg = (uint16_t)((GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK0 | (TC3_GCLK_ID << GCLK_CLKCTRL_ID_Pos)));
     /* TC4 and TC5 share the same channel */
-    GCLK->CLKCTRL.reg = (uint16_t)((GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK0 | (TC4_GCLK_ID << GCLK_CLKCTRL_ID_Pos)));
+    GCLK->CLKCTRL.reg = (uint16_t)((GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN_GCLK2 | (TC4_GCLK_ID << GCLK_CLKCTRL_ID_Pos))); //**** CS294-144
 #endif
     while (GCLK->STATUS.bit.SYNCBUSY) {}
 
