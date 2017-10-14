@@ -34,17 +34,20 @@ extern "C" {
 #include "net/gnrc/netdev.h"
 #include "thread.h"
 #include "openthread/types.h"
+#include "openthread/platform/radio.h"
 
 /**< xtimer message receiver event */
 #define OPENTHREAD_XTIMER_MSG_TYPE_EVENT                    (0x2235)
-/**< message received from driver */
-#define OPENTHREAD_NETDEV_MSG_TYPE_EVENT                    (0x2236)
 /**< event indicating a serial (UART) message was sent to OpenThread */
-#define OPENTHREAD_SERIAL_MSG_TYPE_EVENT                    (0x2237)
+#define OPENTHREAD_SERIAL_MSG_TYPE_EVENT                    (0x2236)
+/**< message received from driver */
+#define OPENTHREAD_NETDEV_MSG_TYPE_RECV                     (0x2237)
 /**< event for frame reception */
-#define OPENTHREAD_MSG_TYPE_RECV                            (0x2238)
+#define OPENTHREAD_NETDEV_MSG_TYPE_SENT                     (0x2238)
+/**< event for frame reception */
+#define OPENTHREAD_NETDEV_MSG_TYPE_EVENT                    (0x2239)
 /**< event indicating an OT_JOB message */
-#define OPENTHREAD_JOB_MSG_TYPE_EVENT                       (0x2240)
+#define OPENTHREAD_JOB_MSG_TYPE_EVENT                       (0x2241)
 /**< number of serial reception buffer */
 #define OPENTHREAD_NUMBER_OF_SERIAL_BUFFER                  (1U)
 /**< sizeof in bytes the two first members of she serial structure */
@@ -149,11 +152,25 @@ int openthread_netdev_init(char *stack, int stacksize, char priority, const char
 int openthread_timer_init(char *stack, int stacksize, char priority, const char *name);
 
 /**
- * @brief   get PID of OpenThread thread.
+ * @brief   get PID of OpenThread main thread.
  *
- * @return  PID of OpenThread thread
+ * @return  PID of OpenThread main thread
  */
-kernel_pid_t openthread_get_pid(void);
+kernel_pid_t openthread_get_main_pid(void);
+
+/**
+ * @brief   get PID of OpenThread netdev thread.
+ *
+ * @return  PID of OpenThread netdev thread
+ */
+kernel_pid_t openthread_get_netdev_pid(void);
+
+/**
+ * @brief   get PID of OpenThread timer thread.
+ *
+ * @return  PID of OpenThread timer thread
+ */
+kernel_pid_t openthread_get_timer_pid(void);
 
 /**
  * @brief   get PID of OpenThread thread.
@@ -161,6 +178,20 @@ kernel_pid_t openthread_get_pid(void);
  * @return  PID of OpenThread thread
  */
 otInstance* openthread_get_instance(void);
+
+/**
+ * @brief   get txframe of OpenThread netdev.
+ *
+ * @return  txframe of OpenThread netdev
+ */
+otRadioFrame* openthread_get_txframe(void);
+
+/**
+ * @brief   get rxframe of OpenThread netdev.
+ *
+ * @return  rxframe of OpenThread netdev
+ */
+otRadioFrame* openthread_get_rxframe(void);
 
 /**
  * @brief   Init OpenThread random

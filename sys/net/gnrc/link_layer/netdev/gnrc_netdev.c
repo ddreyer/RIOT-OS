@@ -113,7 +113,6 @@ static void *_gnrc_netdev_thread(void *args)
 
     gnrc_netdev->pid = thread_getpid();
 
-    gnrc_netapi_opt_t *opt;
     int res;
     msg_t msg, reply, msg_queue[NETDEV_NETAPI_MSG_QUEUE_SIZE];
 
@@ -147,7 +146,7 @@ static void *_gnrc_netdev_thread(void *args)
                 break;
             case GNRC_NETAPI_MSG_TYPE_SET:
                 /* read incoming options */
-                opt = msg.content.ptr;
+                gnrc_netapi_opt_t *opt = msg.content.ptr;
                 DEBUG("gnrc_netdev: GNRC_NETAPI_MSG_TYPE_SET received. opt=%s\n",
                         netopt2str(opt->opt));
                 /* set option for device driver */
