@@ -493,7 +493,7 @@ static void _event_cb(netdev_t *dev, netdev_event_t event) {
     }
 }
 
-/* OpenThread netdev thread */
+/* OpenThread netdev thread: process received packets */
 static void *_openthread_netdev_thread(void *arg) {
     netdev_pid = thread_getpid();
 
@@ -505,7 +505,7 @@ static void *_openthread_netdev_thread(void *arg) {
         switch (msg.type) {
             case OPENTHREAD_NETDEV_MSG_TYPE_EVENT:
                 /* Received an event from driver */
-                DEBUG("openthread_netdev: OPENTHREAD_NETDEV_MSG_TYPE_EVENT received\n");
+                //DEBUG("openthread_netdev: OPENTHREAD_NETDEV_MSG_TYPE_EVENT received\n");
                 _dev->driver->isr(_dev);
                 break;
         }

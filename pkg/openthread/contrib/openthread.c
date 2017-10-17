@@ -201,7 +201,9 @@ static void *_openthread_main_thread(void *arg) {
     while (1) {
         otTaskletsProcess(sInstance);
         if (otTaskletsArePending(sInstance) == false) {
+            DEBUG("***openthread_main sleep***\n");
             msg_receive(&msg);
+            DEBUG("\n***openthread_main wakeup***\n");
             switch (msg.type) {
                 case OPENTHREAD_NETDEV_MSG_TYPE_RECV:
                     /* Received an event from driver */
@@ -253,10 +255,10 @@ void openthread_bootstrap(void)
 #endif
     openthread_radio_init(netdev, tx_buf, rx_buf);
     netdev_pid = openthread_netdev_init(ot_netdev_thread_stack, sizeof(ot_netdev_thread_stack), 
-                           THREAD_PRIORITY_MAIN +3, "openthread_netdev", netdev);
+                           THREAD_PRIORITY_MAIN + 3, "openthread_netdev", netdev);
     timer_pid = openthread_timer_init(ot_timer_thread_stack, sizeof(ot_timer_thread_stack),
-                         THREAD_PRIORITY_MAIN +2, "openthread_timer"); 
+                         THREAD_PRIORITY_MAIN + 2, "openthread_timer"); 
     main_pid = thread_create(ot_main_thread_stack, sizeof(ot_main_thread_stack),
-                         THREAD_PRIORITY_MAIN +1, THREAD_CREATE_STACKTEST,
+                         THREAD_PRIORITY_MAIN + 1, THREAD_CREATE_STACKTEST,
                          _openthread_main_thread, NULL, "openthread_main");   
 }
