@@ -31,7 +31,7 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-#define OPENTHREAD_TIMER_QUEUE_LEN      (1)
+#define OPENTHREAD_TIMER_QUEUE_LEN      (5)
 static msg_t _queue[OPENTHREAD_TIMER_QUEUE_LEN];
 static kernel_pid_t timer_pid;
 

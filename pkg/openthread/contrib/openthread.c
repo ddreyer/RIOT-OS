@@ -57,7 +57,7 @@ static at86rf2xx_t at86rf2xx_dev;
 #define IEEE802154_ACK_LENGTH (5)
 #define IEEE802154_DSN_OFFSET (2)
 
-#define OPENTHREAD_QUEUE_LEN      (8)
+#define OPENTHREAD_QUEUE_LEN      (10)
 static msg_t _queue[OPENTHREAD_QUEUE_LEN];
 static char ot_main_thread_stack[THREAD_STACKSIZE_MAIN];
 static kernel_pid_t main_pid;
