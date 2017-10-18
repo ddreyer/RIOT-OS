@@ -91,6 +91,11 @@ kernel_pid_t openthread_get_timer_pid(void) {
     return timer_pid;
 }
 
+netdev_t* openthread_get_netdev(void) {
+    return (netdev_t*) &at86rf2xx_dev;
+}
+
+
 uint8_t ot_call_command(char* command, void *arg, void* answer) {
     ot_job_t job;
 
@@ -141,21 +146,21 @@ void sent_pkt(netdev_event_t event)
     /* Tell OpenThread transmission is done depending on the NETDEV event */
     switch (event) {
         case NETDEV_EVENT_TX_COMPLETE:
-            DEBUG("openthread: NETDEV_EVENT_TX_COMPLETE\n\n");
+            DEBUG("ot: TX_COMPLETE\n");
             ackFrame = _create_fake_ack_frame(false);
             otPlatRadioTxDone(sInstance, openthread_get_txframe(), &ackFrame, OT_ERROR_NONE);
             break;
         case NETDEV_EVENT_TX_COMPLETE_DATA_PENDING:
-            DEBUG("openthread: NETDEV_EVENT_TX_COMPLETE_DATA_PENDING\n\n");
+            DEBUG("ot: TX_COMPLETE_DATA_PENDING\n");
             ackFrame = _create_fake_ack_frame(true);
             otPlatRadioTxDone(sInstance, openthread_get_txframe(), &ackFrame, OT_ERROR_NONE);
             break;
         case NETDEV_EVENT_TX_NOACK:
-            DEBUG("openthread: NETDEV_EVENT_TX_NOACK\n\n");
+            DEBUG("ot: TX_NOACK\n");
             otPlatRadioTxDone(sInstance, openthread_get_txframe(), NULL, OT_ERROR_NO_ACK);
             break;
         case NETDEV_EVENT_TX_MEDIUM_BUSY:
-            DEBUG("openthread: NETDEV_EVENT_TX_MEDIUM_BUSY\n\n");
+            DEBUG("ot: TX_MEDIUM_BUSY\n");
             otPlatRadioTxDone(sInstance, openthread_get_txframe(), NULL, OT_ERROR_CHANNEL_ACCESS_FAILURE);
             break;
         default:
@@ -201,37 +206,41 @@ static void *_openthread_main_thread(void *arg) {
     while (1) {
         otTaskletsProcess(sInstance);
         if (otTaskletsArePending(sInstance) == false) {
-            DEBUG("***openthread_main sleep***\n");
+            DEBUG("****** ot_main sleep ******\n");
             msg_receive(&msg);
-            DEBUG("\n***openthread_main wakeup***\n");
+            DEBUG("\n****** ot_main wakeup ******\n");
             switch (msg.type) {
                 case OPENTHREAD_NETDEV_MSG_TYPE_RECV:
-                    /* Received an event from driver */
-                    DEBUG("openthread_main: OPENTHREAD_NETDEV_MSG_TYPE_RECV received\n");
-                    /* Tell OpenThread that receive has finished */
-                    int res = *((int*)msg.content.ptr);
-                    otPlatRadioReceiveDone(sInstance, res > 0 ? openthread_get_rxframe() : NULL, 
+                    {
+                        /* Received an event from driver */
+                        //DEBUG("ot_main: OPENTHREAD_NETDEV_MSG_TYPE_RECV received\n");
+                        /* Tell OpenThread that receive has finished */
+                        int res = *((int*)msg.content.ptr);
+                        otPlatRadioReceiveDone(sInstance, res > 0 ? openthread_get_rxframe() : NULL, 
                                            res > 0 ? OT_ERROR_NONE : OT_ERROR_ABORT);
-                    break;
+                        break;
+                    }
                 case OPENTHREAD_NETDEV_MSG_TYPE_SENT:
-                    DEBUG("openthread_main: OPENTHREAD_NETDEV_MSG_TYPE_SENT received\n");
-                    netdev_event_t event = *((netdev_event_t*)msg.content.ptr);
-                    sent_pkt(event);
-                    break;
+                    {
+                        //DEBUG("ot_main: OPENTHREAD_NETDEV_MSG_TYPE_SENT received\n");
+                        netdev_event_t event = *((netdev_event_t*)msg.content.ptr);
+                        sent_pkt(event);
+                        break;
+                    }
                 case OPENTHREAD_XTIMER_MSG_TYPE_EVENT:
                     /* Tell OpenThread a time event was received */
-                    DEBUG("openthread_main: OPENTHREAD_XTIMER_MSG_TYPE_EVENT received\n");
+                    //DEBUG("ot_main: OPENTHREAD_XTIMER_MSG_TYPE_EVENT received\n");
                     otPlatAlarmMilliFired(sInstance);
                     break;
                 case OPENTHREAD_SERIAL_MSG_TYPE_EVENT:
                     /* Tell OpenThread about the reception of a CLI command */
-                    DEBUG("openthread_main: OPENTHREAD_SERIAL_MSG_TYPE_SEND received\n");
+                    DEBUG("ot_main: OPENTHREAD_SERIAL_MSG_TYPE_SEND received\n");
                     serialBuffer = (serial_msg_t*)msg.content.ptr;
                     otPlatUartReceived((uint8_t*) serialBuffer->buf,serialBuffer->length);
                     serialBuffer->serial_buffer_status = OPENTHREAD_SERIAL_BUFFER_STATUS_FREE;
                     break;
                 case OPENTHREAD_JOB_MSG_TYPE_EVENT:
-                    DEBUG("openthread_main: OPENTHREAD_JOB_MSG_TYPE_EVENT received\n");
+                    DEBUG("ot_main: OPENTHREAD_JOB_MSG_TYPE_EVENT received\n");
                     job = msg.content.ptr;
                     reply.content.value = ot_exec_command(sInstance, job->command, job->arg, job->answer);
                     msg_reply(&msg, &reply);

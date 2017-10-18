@@ -171,7 +171,7 @@ void otPlatRadioSetExtendedAddress(otInstance *aInstance, const otExtAddress *aE
 /* OpenThread will call this for setting short address */
 void otPlatRadioSetShortAddress(otInstance *aInstance, uint16_t aShortAddress)
 {
-    DEBUG("openthread: otPlatRadioSetShortAddress: setting address to %04x\n", aShortAddress);
+    DEBUG("ot: SetShortAddr: %04x\n", aShortAddress);
     _set_addr(((aShortAddress & 0xff) << 8) | ((aShortAddress >> 8) & 0xff));
 }
 
@@ -265,7 +265,7 @@ otError otPlatRadioTransmit(otInstance *aInstance, otRadioFrame *aPacket)
     pkt.iov_len = aPacket->mLength - RADIO_IEEE802154_FCS_LEN;
 
     /*Set channel and power based on transmit frame */
-    DEBUG("otPlatRadioTransmit->channel: %i, length %d, power %d\n", (int) aPacket->mChannel, (int)aPacket->mLength, aPacket->mPower);
+    DEBUG("otTx->channel: %i, length %d, power %d\n", (int) aPacket->mChannel, (int)aPacket->mLength, aPacket->mPower);
     /*for (int i = 0; i < aPacket->mLength; ++i) {
         DEBUG("%x ", aPacket->mPsdu[i]);
     }
@@ -282,7 +282,7 @@ otError otPlatRadioTransmit(otInstance *aInstance, otRadioFrame *aPacket)
 /* OpenThread will call this for getting the radio caps */
 otRadioCaps otPlatRadioGetCaps(otInstance *aInstance)
 {
-    DEBUG("openthread: otPlatRadioGetCaps\n");
+    //DEBUG("openthread: otPlatRadioGetCaps\n");
     /* radio drivers should handle retransmission and CSMA */
     return OT_RADIO_CAPS_ACK_TIMEOUT | OT_RADIO_CAPS_TRANSMIT_RETRIES | OT_RADIO_CAPS_CSMA_BACKOFF;
     //return OT_RADIO_CAPS_NONE;
@@ -291,14 +291,14 @@ otRadioCaps otPlatRadioGetCaps(otInstance *aInstance)
 /* OpenThread will call this for getting the state of promiscuous mode */
 bool otPlatRadioGetPromiscuous(otInstance *aInstance)
 {
-    DEBUG("openthread: otPlatRadioGetPromiscuous\n");
+    //DEBUG("openthread: otPlatRadioGetPromiscuous\n");
     return _is_promiscuous();
 }
 
 /* OpenThread will call this for setting the state of promiscuous mode */
 void otPlatRadioSetPromiscuous(otInstance *aInstance, bool aEnable)
 {
-    DEBUG("openthread: otPlatRadioSetPromiscuous\n");
+    //DEBUG("openthread: otPlatRadioSetPromiscuous\n");
     _set_promiscuous((aEnable) ? NETOPT_ENABLE : NETOPT_DISABLE);
 }
 
@@ -445,7 +445,7 @@ void recv_pkt(otInstance *aInstance, netdev_t *dev)
 #endif
     sReceiveFrame.mPower = Rssi;
 
-    DEBUG("\nopenthread_netdev: Rx message: len %d, rssi %d\n", (int) sReceiveFrame.mLength, sReceiveFrame.mPower);
+    DEBUG("\not_netdev: Rx len %d, rssi %d\n", (int) sReceiveFrame.mLength, sReceiveFrame.mPower);
     /*for (int i = 0; i < sReceiveFrame.mLength; ++i) {
         DEBUG("%x ", sReceiveFrame.mPsdu[i]);
     }
@@ -472,7 +472,19 @@ static void _event_cb(netdev_t *dev, netdev_event_t event) {
                 }
                 break;
             }
+        case NETDEV_EVENT_ISR2:
+            {
+                msg_t msg;
+                assert(netdev_pid != KERNEL_PID_UNDEF);
 
+                msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
+                msg.content.ptr = dev;
+
+                if (msg_send(&msg, openthread_get_timer_pid()) <= 0) {
+                    DEBUG("openthread_netdev: possibly lost interrupt.\n");
+                }
+                break;
+            }
         case NETDEV_EVENT_RX_COMPLETE:
             recv_pkt(openthread_get_instance(), dev);
             break;

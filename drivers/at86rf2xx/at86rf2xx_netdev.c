@@ -61,7 +61,15 @@ static void _irq_handler(void *arg)
     netdev_t *dev = (netdev_t *) arg;
 
     if (dev->event_callback) {
-        dev->event_callback(dev, NETDEV_EVENT_ISR);
+#if MODULE_OPENTHREAD
+        if (((at86rf2xx_t *) dev)->netdev.flags & AT86RF2XX_OPT_TELL_TX_END) {
+            dev->event_callback(dev, NETDEV_EVENT_ISR2);
+        } else {
+            dev->event_callback(dev, NETDEV_EVENT_ISR);
+        }
+#else
+       dev->event_callback(dev, NETDEV_EVENT_ISR);
+#endif
     }
 }
 

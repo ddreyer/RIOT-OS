@@ -31,7 +31,7 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-#define OPENTHREAD_TIMER_QUEUE_LEN      (2)
+#define OPENTHREAD_TIMER_QUEUE_LEN      (3)
 static msg_t _queue[OPENTHREAD_TIMER_QUEUE_LEN];
 static kernel_pid_t timer_pid;
 
@@ -48,9 +48,10 @@ static msg_t ot_alarm_msg;
 void otPlatAlarmMilliStartAt(otInstance *aInstance, uint32_t aT0, uint32_t aDt)
 {
     DEBUG("openthread_main: otPlatAlarmMilliStartAt: aT0: %" PRIu32 ", aDT: %" PRIu32 "pid %u\n", aT0, aDt, event_pid);
+    xtimer_remove(&ot_timer);
     printf("[timer set] %lu ms\n", aDt);
     ot_alarm_msg.type = OPENTHREAD_XTIMER_MSG_TYPE_EVENT;
-    if (aDt == 0) {
+    if (aDt <= 5) {
         msg_send(&ot_alarm_msg, timer_pid);
     }
     else {
@@ -89,6 +90,13 @@ static void *_openthread_timer_thread(void *arg) {
                 DEBUG("openthread_timer: OPENTHREAD_XTIMER_MSG_TYPE_EVENT received\n");
                 msg.type = OPENTHREAD_XTIMER_MSG_TYPE_EVENT;
                 msg_send(&msg, openthread_get_main_pid());
+                break;
+            case OPENTHREAD_NETDEV_MSG_TYPE_EVENT:
+                /* Received an event from driver */
+                DEBUG("openthread_netdev: OPENTHREAD_NETDEV_MSG_TYPE_EVENT received\n");
+                openthread_get_netdev()->driver->isr(openthread_get_netdev());
+                //msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
+                //msg_send(&msg, openthread_get_netdev_pid());
                 break;
         }
     }
