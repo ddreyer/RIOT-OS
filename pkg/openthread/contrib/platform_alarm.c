@@ -31,12 +31,13 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-#define OPENTHREAD_TIMER_QUEUE_LEN      (3)
+#define OPENTHREAD_TIMER_QUEUE_LEN      (8)
 static msg_t _queue[OPENTHREAD_TIMER_QUEUE_LEN];
 static kernel_pid_t timer_pid;
 
-static xtimer_t ot_timer;
-static msg_t ot_alarm_msg;
+//static msg_t ot_alarm_msg;
+
+
 
 /**
  * Set the alarm to fire at @p aDt milliseconds after @p aT0.
@@ -47,16 +48,18 @@ static msg_t ot_alarm_msg;
  */
 void otPlatAlarmMilliStartAt(otInstance *aInstance, uint32_t aT0, uint32_t aDt)
 {
-    DEBUG("openthread_main: otPlatAlarmMilliStartAt: aT0: %" PRIu32 ", aDT: %" PRIu32 "pid %u\n", aT0, aDt, event_pid);
-    xtimer_remove(&ot_timer);
+    DEBUG("openthread_main: otPlatAlarmMilliStartAt: aT0: %" PRIu32 ", aDT: %" PRIu32 "pid %u\n", aT0, aDt, timer_pid);
+    xtimer_remove(openthread_get_timer());
     printf("[timer set] %lu ms\n", aDt);
-    ot_alarm_msg.type = OPENTHREAD_XTIMER_MSG_TYPE_EVENT;
-    if (aDt <= 5) {
-        msg_send(&ot_alarm_msg, timer_pid);
+    if (aDt == 0) {
+        msg_t msg;
+        msg.type = OPENTHREAD_XTIMER_MSG_TYPE_EVENT;
+        msg_send(&msg, timer_pid);
     }
     else {
         int dt = aDt * US_PER_MS;
-        xtimer_set_msg(&ot_timer, dt, &ot_alarm_msg, timer_pid);
+//        xtimer_set_msg(&ot_timer, dt, &ot_alarm_msg, timer_pid);
+        xtimer_set(openthread_get_timer(), dt);
     }
 }
 
@@ -64,7 +67,7 @@ void otPlatAlarmMilliStartAt(otInstance *aInstance, uint32_t aT0, uint32_t aDt)
 void otPlatAlarmMilliStop(otInstance *aInstance)
 {
     DEBUG("openthread_main: otPlatAlarmMilliStop\n");
-    xtimer_remove(&ot_timer);
+    xtimer_remove(openthread_get_timer());
 }
 
 /* OpenThread will call this for getting running time in millisecs */
@@ -87,7 +90,7 @@ static void *_openthread_timer_thread(void *arg) {
         switch (msg.type) {
             case OPENTHREAD_XTIMER_MSG_TYPE_EVENT:
                 /* Tell OpenThread a time event was received */
-                DEBUG("openthread_timer: OPENTHREAD_XTIMER_MSG_TYPE_EVENT received\n");
+                printf("ot_timer: fired");//OPENTHREAD_XTIMER_MSG_TYPE_EVENT received\n");
                 msg.type = OPENTHREAD_XTIMER_MSG_TYPE_EVENT;
                 msg_send(&msg, openthread_get_main_pid());
                 break;
@@ -95,8 +98,6 @@ static void *_openthread_timer_thread(void *arg) {
                 /* Received an event from driver */
                 DEBUG("openthread_netdev: OPENTHREAD_NETDEV_MSG_TYPE_EVENT received\n");
                 openthread_get_netdev()->driver->isr(openthread_get_netdev());
-                //msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
-                //msg_send(&msg, openthread_get_netdev_pid());
                 break;
         }
     }

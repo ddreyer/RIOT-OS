@@ -196,6 +196,8 @@ otRadioFrame* openthread_get_rxframe(void);
 
 netdev_t* openthread_get_netdev(void);
 
+xtimer_t* openthread_get_timer(void);
+
 /**
  * @brief   Init OpenThread random
  */

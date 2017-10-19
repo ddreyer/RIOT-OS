@@ -54,6 +54,8 @@ static otInstance *sInstance;
 static at86rf2xx_t at86rf2xx_dev;
 #endif
 
+static xtimer_t ot_timer;
+
 #define IEEE802154_ACK_LENGTH (5)
 #define IEEE802154_DSN_OFFSET (2)
 
@@ -95,6 +97,22 @@ netdev_t* openthread_get_netdev(void) {
     return (netdev_t*) &at86rf2xx_dev;
 }
 
+xtimer_t* openthread_get_timer(void) {
+    return &ot_timer;
+}
+
+
+/**
+ * @brief   Function called by the dutycycle timer
+ *
+ * @param[in] event     type of event
+ */
+void ot_timer_cb(void* arg) {
+    printf("\ncb->");
+    msg_t msg;
+	msg.type = OPENTHREAD_XTIMER_MSG_TYPE_EVENT;
+	msg_send(&msg, timer_pid);
+}
 
 uint8_t ot_call_command(char* command, void *arg, void* answer) {
     ot_job_t job;
@@ -171,6 +189,8 @@ void sent_pkt(netdev_event_t event)
 
 static void *_openthread_main_thread(void *arg) {
     main_pid = thread_getpid();
+
+    ot_timer.callback = ot_timer_cb;
 
     /* enable OpenThread UART */
     otPlatUartEnable();
