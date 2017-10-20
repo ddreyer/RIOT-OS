@@ -40,10 +40,6 @@ extern "C" {
 #define OPENTHREAD_XTIMER_MSG_TYPE_EVENT                    (0x2235)
 /**< event indicating a serial (UART) message was sent to OpenThread */
 #define OPENTHREAD_SERIAL_MSG_TYPE_EVENT                    (0x2236)
-/**< message received from driver */
-#define OPENTHREAD_NETDEV_MSG_TYPE_RECV                     (0x2237)
-/**< event for frame reception */
-#define OPENTHREAD_NETDEV_MSG_TYPE_SENT                     (0x2238)
 /**< event for frame reception */
 #define OPENTHREAD_NETDEV_MSG_TYPE_EVENT                    (0x2239)
 /**< event indicating an OT_JOB message */
@@ -107,7 +103,7 @@ void recv_pkt(otInstance *aInstance, netdev_t *dev);
  * @param[in]  dev                pointer to a netdev interface
  * @param[in]  event              just occurred netdev event
  */
-void send_pkt(otInstance *aInstance, netdev_t *dev, netdev_event_t event);
+void sent_pkt(otInstance *aInstance, netdev_event_t event);
 
 /**
  * @brief   Bootstrap OpenThread
@@ -123,7 +119,6 @@ void openthread_bootstrap(void);
  */
 void openthread_radio_init(netdev_t *dev, uint8_t *tb, uint8_t *rb);
 
-
 /**
  * @brief   Starts OpenThread thread.
  *
@@ -136,7 +131,7 @@ void openthread_radio_init(netdev_t *dev, uint8_t *tb, uint8_t *rb);
  * @return  PID of OpenThread thread
  * @return  -EINVAL if there was an error creating the thread
  */
-int openthread_netdev_init(char *stack, int stacksize, char priority, const char *name, netdev_t *netdev);
+//int openthread_rx_init(char *stack, int stacksize, char priority, const char *name, netdev_t *netdev);
 
 /**
  * @brief   Starts OpenThread thread.
@@ -146,10 +141,10 @@ int openthread_netdev_init(char *stack, int stacksize, char priority, const char
  * @param[in]  priority           priority of the OpenThread timer stack
  * @param[in]  name               name of the OpenThread timer stack
  *
- * @return  PID of OpenThread timer thread
+ * @return  PID of OpenThread event thread
  * @return  -EINVAL if there was an error creating the thread
  */
-int openthread_timer_init(char *stack, int stacksize, char priority, const char *name);
+int openthread_event_init(char *stack, int stacksize, char priority, const char *name);
 
 /**
  * @brief   get PID of OpenThread main thread.
@@ -159,43 +154,24 @@ int openthread_timer_init(char *stack, int stacksize, char priority, const char 
 kernel_pid_t openthread_get_main_pid(void);
 
 /**
- * @brief   get PID of OpenThread netdev thread.
+ * @brief   get PID of OpenThread Critical Event thread.
  *
- * @return  PID of OpenThread netdev thread
+ * @return  PID of OpenThread Critical Event thread
  */
-kernel_pid_t openthread_get_netdev_pid(void);
+kernel_pid_t openthread_get_event_pid(void);
 
 /**
- * @brief   get PID of OpenThread timer thread.
+ * @brief   get instance of OpenThread.
  *
- * @return  PID of OpenThread timer thread
- */
-kernel_pid_t openthread_get_timer_pid(void);
-
-/**
- * @brief   get PID of OpenThread thread.
- *
- * @return  PID of OpenThread thread
+ * @return  instance of OpenThread thread
  */
 otInstance* openthread_get_instance(void);
 
 /**
- * @brief   get txframe of OpenThread netdev.
+ * @brief   get timer of OpenThread.
  *
- * @return  txframe of OpenThread netdev
+ * @return  timer of OpenThread thread
  */
-otRadioFrame* openthread_get_txframe(void);
-
-/**
- * @brief   get rxframe of OpenThread netdev.
- *
- * @return  rxframe of OpenThread netdev
- */
-otRadioFrame* openthread_get_rxframe(void);
-
-
-netdev_t* openthread_get_netdev(void);
-
 xtimer_t* openthread_get_timer(void);
 
 /**

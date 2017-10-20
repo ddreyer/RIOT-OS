@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2017 Fundacion Inria Chile
- * Copyright (C) 2017 UC Berkeley
  *
  * This file is subject to the terms and conditions of the GNU Lesser
  * General Public License v2.1. See the file LICENSE in the top level
@@ -14,7 +13,6 @@
  * @brief       Implementation of OpenThread radio platform abstraction
  *
  * @author      Jose Ignacio Alamos <jialamos@uc.cl>
- * @author      Hyung-Sin Kim <hs.kim@cs.berkeley.edu>
  * @}
  */
 
@@ -35,15 +33,12 @@
 #include "openthread/platform/radio.h"
 #include "ot.h"
 
-
 #define ENABLE_DEBUG (1)
 #include "debug.h"
 
 #define RADIO_IEEE802154_FCS_LEN    (2U)
-
-#define OPENTHREAD_NETDEV_QUEUE_LEN      (8)
-static msg_t _queue[OPENTHREAD_NETDEV_QUEUE_LEN];
-static kernel_pid_t netdev_pid;
+#define IEEE802154_ACK_LENGTH (5)
+#define IEEE802154_DSN_OFFSET (2)
 
 static otRadioFrame sTransmitFrame;
 static otRadioFrame sReceiveFrame;
@@ -55,9 +50,6 @@ static bool sDisabled;
 
 uint8_t short_address_list = 0;
 uint8_t ext_address_list = 0;
-
-gnrc_netapi_opt_t opt;
-msg_t msg;
 
 /* set 15.4 channel */
 static int _set_channel(uint16_t channel)
@@ -140,27 +132,18 @@ void openthread_radio_init(netdev_t *dev, uint8_t *tb, uint8_t *rb)
     _dev = dev;
 }
 
-/* get transmitted frame */
-otRadioFrame* openthread_get_txframe(void) {
-    return &sTransmitFrame;
-}
-
-/* get received frame */
-otRadioFrame* openthread_get_rxframe(void) {
-    return &sReceiveFrame;
-}
 
 /* OpenThread will call this for setting PAN ID */
 void otPlatRadioSetPanId(otInstance *aInstance, uint16_t panid)
 {
-    DEBUG("openthread: otPlatRadioSetPanId: setting PAN ID to %04x\n", panid);
+    DEBUG("otPlatRadioSetPanId: setting PAN ID to %04x\n", panid);
     _set_panid(panid);
 }
 
 /* OpenThread will call this for setting extended address */
 void otPlatRadioSetExtendedAddress(otInstance *aInstance, const otExtAddress *aExtendedAddress)
 {
-    DEBUG("openthread: otPlatRadioSetExtendedAddress\n");
+    DEBUG("otPlatRadioSetExtendedAddr\n");
     uint8_t reversed_addr[IEEE802154_LONG_ADDRESS_LEN];
     for (int i = 0; i < IEEE802154_LONG_ADDRESS_LEN; i++) {
         reversed_addr[i] = aExtendedAddress->m8[IEEE802154_LONG_ADDRESS_LEN - 1 - i];
@@ -171,14 +154,14 @@ void otPlatRadioSetExtendedAddress(otInstance *aInstance, const otExtAddress *aE
 /* OpenThread will call this for setting short address */
 void otPlatRadioSetShortAddress(otInstance *aInstance, uint16_t aShortAddress)
 {
-    DEBUG("ot: SetShortAddr: %04x\n", aShortAddress);
+    DEBUG("otPlatRadioSetShortAddr: %04x\n", aShortAddress);
     _set_addr(((aShortAddress & 0xff) << 8) | ((aShortAddress >> 8) & 0xff));
 }
 
 /* OpenThread will call this for enabling the radio */
 otError otPlatRadioEnable(otInstance *aInstance)
 {
-    DEBUG("openthread: otPlatRadioEnable\n");
+    DEBUG("otPlatRadioEnable\n");
     (void) aInstance;
 
     if (sDisabled) {
@@ -192,7 +175,7 @@ otError otPlatRadioEnable(otInstance *aInstance)
 /* OpenThread will call this for disabling the radio */
 otError otPlatRadioDisable(otInstance *aInstance)
 {
-    DEBUG("openthread: otPlatRadioDisable\n");
+    DEBUG("otPlatRadioDisable\n");
     (void) aInstance;
 
     if (!sDisabled) {
@@ -239,7 +222,7 @@ otError otPlatRadioReceive(otInstance *aInstance, uint8_t aChannel)
 /* OpenThread will call this function to get the transmit buffer */
 otRadioFrame *otPlatRadioGetTransmitBuffer(otInstance *aInstance)
 {
-    DEBUG("openthread: otPlatRadioGetTransmitBuffer\n");
+    DEBUG("otPlatRadioGetTransmitBuffer\n");
     return &sTransmitFrame;
 }
 
@@ -284,8 +267,11 @@ otRadioCaps otPlatRadioGetCaps(otInstance *aInstance)
 {
     //DEBUG("openthread: otPlatRadioGetCaps\n");
     /* radio drivers should handle retransmission and CSMA */
+#if MODULE_AT86RF231 | MODULE_AT86RF233
     return OT_RADIO_CAPS_ACK_TIMEOUT | OT_RADIO_CAPS_TRANSMIT_RETRIES | OT_RADIO_CAPS_CSMA_BACKOFF;
-    //return OT_RADIO_CAPS_NONE;
+#else
+    return OT_RADIO_CAPS_NONE;
+#endif
 }
 
 /* OpenThread will call this for getting the state of promiscuous mode */
@@ -415,12 +401,67 @@ int8_t otPlatRadioGetReceiveSensitivity(otInstance *aInstance)
 #endif
 }
 
+
+/* create a fake ACK frame */
+// TODO: pass received ACK frame instead of generating one.
+static inline otRadioFrame _create_fake_ack_frame(bool ackPending)
+{
+    otRadioFrame ackFrame;
+    uint8_t psdu[IEEE802154_ACK_LENGTH];
+
+    ackFrame.mPsdu = psdu;
+    ackFrame.mLength = IEEE802154_ACK_LENGTH;
+    ackFrame.mPsdu[0] = IEEE802154_FCF_TYPE_ACK;
+
+    if (ackPending)
+    {
+        ackFrame.mPsdu[0] |= IEEE802154_FCF_FRAME_PEND;
+    }
+
+    ackFrame.mPsdu[1] = 0;
+    ackFrame.mPsdu[2] = sTransmitFrame.mPsdu[IEEE802154_DSN_OFFSET];
+
+    ackFrame.mPower = OT_RADIO_RSSI_INVALID;
+
+    return ackFrame;
+}
+
+/* Called upon TX event */
+void sent_pkt(otInstance *aInstance, netdev_event_t event)
+{
+    otRadioFrame ackFrame;
+    /* Tell OpenThread transmission is done depending on the NETDEV event */
+    switch (event) {
+        case NETDEV_EVENT_TX_COMPLETE:
+            DEBUG("ot: TX_COMPLETE\n");
+            ackFrame = _create_fake_ack_frame(false);
+            otPlatRadioTxDone(aInstance, &sTransmitFrame, &ackFrame, OT_ERROR_NONE);
+            break;
+        case NETDEV_EVENT_TX_COMPLETE_DATA_PENDING:
+            DEBUG("ot: TX_COMPLETE_DATA_PENDING\n");
+            ackFrame = _create_fake_ack_frame(true);
+            otPlatRadioTxDone(aInstance, &sTransmitFrame, &ackFrame, OT_ERROR_NONE);
+            break;
+        case NETDEV_EVENT_TX_NOACK:
+            DEBUG("ot: TX_NOACK\n");
+            otPlatRadioTxDone(aInstance, &sTransmitFrame, NULL, OT_ERROR_NO_ACK);
+            break;
+        case NETDEV_EVENT_TX_MEDIUM_BUSY:
+            DEBUG("ot: TX_MEDIUM_BUSY\n");
+            otPlatRadioTxDone(aInstance, &sTransmitFrame, NULL, OT_ERROR_CHANNEL_ACCESS_FAILURE);
+            break;
+        default:
+            break;
+    }
+}
+
+
 /* Called upon NETDEV_EVENT_RX_COMPLETE event */
 void recv_pkt(otInstance *aInstance, netdev_t *dev)
 {
     netdev_ieee802154_rx_info_t rx_info;
     int res;
-    msg_t msg;
+
     /* Read frame length from driver */
     int len = dev->driver->recv(dev, NULL, 0, NULL);
 
@@ -445,103 +486,12 @@ void recv_pkt(otInstance *aInstance, netdev_t *dev)
 #endif
     sReceiveFrame.mPower = Rssi;
 
-    DEBUG("\not_netdev: Rx len %d, rssi %d\n", (int) sReceiveFrame.mLength, sReceiveFrame.mPower);
+    DEBUG("ot: RX_COMPLETE, len %d, rssi %d\n", (int) sReceiveFrame.mLength, sReceiveFrame.mPower);
     /*for (int i = 0; i < sReceiveFrame.mLength; ++i) {
         DEBUG("%x ", sReceiveFrame.mPsdu[i]);
     }
     DEBUG("\n");*/
 exit:
-    msg.type = OPENTHREAD_NETDEV_MSG_TYPE_RECV;
-    msg.content.ptr = &res;
-    msg_send(&msg, openthread_get_main_pid());
-}
-
-/* Interupt handler for OpenThread netdev thread */
-static void _event_cb(netdev_t *dev, netdev_event_t event) {
-    switch (event) {
-        case NETDEV_EVENT_ISR:
-            {
-                msg_t msg;
-                assert(netdev_pid != KERNEL_PID_UNDEF);
-
-                msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
-                msg.content.ptr = dev;
-
-                if (msg_send(&msg, netdev_pid) <= 0) {
-                    DEBUG("openthread_netdev: possibly lost interrupt.\n");
-                }
-                break;
-            }
-        case NETDEV_EVENT_ISR2:
-            {
-                msg_t msg;
-                assert(netdev_pid != KERNEL_PID_UNDEF);
-
-                msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
-                msg.content.ptr = dev;
-
-                if (msg_send(&msg, openthread_get_timer_pid()) <= 0) {
-                    DEBUG("openthread_netdev: possibly lost interrupt.\n");
-                }
-                break;
-            }
-        case NETDEV_EVENT_RX_COMPLETE:
-            recv_pkt(openthread_get_instance(), dev);
-            break;
-        case NETDEV_EVENT_TX_COMPLETE:
-        case NETDEV_EVENT_TX_COMPLETE_DATA_PENDING:
-        case NETDEV_EVENT_TX_NOACK:
-        case NETDEV_EVENT_TX_MEDIUM_BUSY:
-            {
-                msg_t msg;
-                netdev_event_t event_ = event;
-                msg.type = OPENTHREAD_NETDEV_MSG_TYPE_SENT;
-                msg.content.ptr = &event_;   
-                msg_send(&msg, openthread_get_main_pid());   
-                break;
-            }
-        default:
-            break;
-    }
-}
-
-/* OpenThread netdev thread: process received packets */
-static void *_openthread_netdev_thread(void *arg) {
-    netdev_pid = thread_getpid();
-
-    msg_init_queue(_queue, OPENTHREAD_NETDEV_QUEUE_LEN);
-    msg_t msg;
-
-    while (1) {
-        msg_receive(&msg);
-        switch (msg.type) {
-            case OPENTHREAD_NETDEV_MSG_TYPE_EVENT:
-                /* Received an event from driver */
-                //DEBUG("openthread_netdev: OPENTHREAD_NETDEV_MSG_TYPE_EVENT received\n");
-                _dev->driver->isr(_dev);
-                break;
-        }
-    }
-
-    return NULL;
-}
-
-/* starts OpenThread netdev thread */
-int openthread_netdev_init(char *stack, int stacksize, char priority,
-                           const char *name, netdev_t *netdev) {
-    netdev->driver->init(netdev);
-    netdev->event_callback = _event_cb;
-
-    netopt_enable_t enable = NETOPT_ENABLE;
-    _dev->driver->set(netdev, NETOPT_TX_END_IRQ, &enable, sizeof(enable));
-
-    netdev_pid = thread_create(stack, stacksize,
-                         priority, THREAD_CREATE_STACKTEST,
-                         _openthread_netdev_thread, NULL, name);
-    
-    if (netdev_pid <= 0) {
-        return -EINVAL;
-    }
-
-    return netdev_pid;
+    otPlatRadioReceiveDone(aInstance, res > 0 ? &sReceiveFrame : NULL, 
+                           res > 0 ? OT_ERROR_NONE : OT_ERROR_ABORT);
 }

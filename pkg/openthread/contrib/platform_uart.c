@@ -152,7 +152,6 @@ otError otPlatUartEnable(void)
         gSerialMessage[i] = (serial_msg_t*) &gSerialBuff[i];
         gSerialMessage[i]->serial_buffer_status = OPENTHREAD_SERIAL_BUFFER_STATUS_FREE;
     }
-
     uart_init(OPENTHREAD_UART_DEV, OPENTHREAD_UART_BAUDRATE, (uart_rx_cb_t) uart_handler, NULL);
 #endif
     return OT_ERROR_NONE;
