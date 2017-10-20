@@ -31,7 +31,7 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-#define OPENTHREAD_TIMER_QUEUE_LEN      (8)
+#define OPENTHREAD_TIMER_QUEUE_LEN      (2)
 static msg_t _queue[OPENTHREAD_TIMER_QUEUE_LEN];
 static kernel_pid_t timer_pid;
 
@@ -48,7 +48,7 @@ static kernel_pid_t timer_pid;
  */
 void otPlatAlarmMilliStartAt(otInstance *aInstance, uint32_t aT0, uint32_t aDt)
 {
-    DEBUG("openthread_main: otPlatAlarmMilliStartAt: aT0: %" PRIu32 ", aDT: %" PRIu32 "pid %u\n", aT0, aDt, timer_pid);
+    DEBUG("ot_main: otPlatAlarmMilliStartAt: aT0: %" PRIu32 ", aDT: %" PRIu32 "pid %u\n", aT0, aDt, timer_pid);
     xtimer_remove(openthread_get_timer());
     printf("[timer set] %lu ms\n", aDt);
     if (aDt == 0) {
@@ -66,7 +66,7 @@ void otPlatAlarmMilliStartAt(otInstance *aInstance, uint32_t aT0, uint32_t aDt)
 /* OpenThread will call this to stop alarms */
 void otPlatAlarmMilliStop(otInstance *aInstance)
 {
-    DEBUG("openthread_main: otPlatAlarmMilliStop\n");
+    DEBUG("ot_main: otPlatAlarmMilliStop\n");
     xtimer_remove(openthread_get_timer());
 }
 
@@ -74,7 +74,7 @@ void otPlatAlarmMilliStop(otInstance *aInstance)
 uint32_t otPlatAlarmMilliGetNow(void)
 {
     uint32_t now = xtimer_now_usec() / US_PER_MS;
-    DEBUG("openthread_main: otPlatAlarmMilliGetNow: %" PRIu32 "\n", now);
+    DEBUG("ot_main: otPlatAlarmMilliGetNow: %" PRIu32 "\n", now);
     return now;
 }
 
@@ -96,7 +96,7 @@ static void *_openthread_timer_thread(void *arg) {
                 break;
             case OPENTHREAD_NETDEV_MSG_TYPE_EVENT:
                 /* Received an event from driver */
-                DEBUG("openthread_netdev: OPENTHREAD_NETDEV_MSG_TYPE_EVENT received\n");
+                DEBUG("ot_netdev: OPENTHREAD_NETDEV_MSG_TYPE_EVENT received\n");
                 openthread_get_netdev()->driver->isr(openthread_get_netdev());
                 break;
         }
