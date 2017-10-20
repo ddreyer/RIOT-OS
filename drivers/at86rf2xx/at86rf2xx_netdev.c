@@ -583,7 +583,9 @@ static void _isr(netdev_t *netdev)
 				/* Wake up for a while when receiving an ACK with pending bit */
 				if (trac_status == AT86RF2XX_TRX_STATE__TRAC_SUCCESS_DATA_PENDING) {
 	                dev->idle_state = AT86RF2XX_STATE_RX_AACK_ON;		
-				}
+				} else {
+                    dev->idle_state = AT86RF2XX_STATE_SLEEP;		
+                }
 #endif
                 at86rf2xx_set_state(dev, dev->idle_state);
                 DEBUG("[at86rf2xx] return to state 0x%x\n", dev->idle_state);
