@@ -265,6 +265,12 @@ static const spi_conf_t spi_config[] = {
 #define RANDOM_NUMOF       (0U)
 /** @} */
 
+/**
+ * @name PM configuration
+ * @{
+ */
+#define PM_BLOCKER_INITIAL { .val_u32 = 0x00000000 }
+/** @} */
 
 #ifdef __cplusplus
 }
