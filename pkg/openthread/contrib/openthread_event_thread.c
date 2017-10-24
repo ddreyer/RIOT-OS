@@ -19,10 +19,10 @@
 #include "thread.h"
 #include "ot.h"
 
-#define ENABLE_DEBUG (0)
+#define ENABLE_DEBUG (1)
 #include "debug.h"
 
-#define OPENTHREAD_EVENT_QUEUE_LEN (2)
+#define OPENTHREAD_EVENT_QUEUE_LEN (5)
 static msg_t _queue[OPENTHREAD_EVENT_QUEUE_LEN];
 static kernel_pid_t _pid;
 
@@ -38,13 +38,14 @@ static void *_openthread_event_thread(void *arg) {
         switch (msg.type) {
             case OPENTHREAD_XTIMER_MSG_TYPE_EVENT:
                 /* Tell OpenThread a time event was received */
-                DEBUG("\not_event: OPENTHREAD_XTIMER_MSG_TYPE_EVENT received\n");
+                DEBUG("\nt");
+                //DEBUG("\not_event: OPENTHREAD_XTIMER_MSG_TYPE_EVENT received\n");
                 msg.type = OPENTHREAD_XTIMER_MSG_TYPE_EVENT;
                 msg_send(&msg, openthread_get_main_pid());
                 break;
             case OPENTHREAD_NETDEV_MSG_TYPE_EVENT:
                 /* Received an event from driver */
-                DEBUG("\not_event: OPENTHREAD_NETDEV_MSG_TYPE_EVENT received\n");
+                //DEBUG("\not_event: OPENTHREAD_NETDEV_MSG_TYPE_EVENT received\n");
                 msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
                 msg_send(&msg, openthread_get_main_pid());
                 break;
