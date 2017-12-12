@@ -41,7 +41,7 @@
 #include "at86rf2xx_params.h"
 #endif
 
-#define ENABLE_DEBUG (0)
+#define ENABLE_DEBUG (1)
 #include "debug.h"
 
 #ifdef MODULE_AT86RF2XX     /* is mutual exclusive with above ifdef */
