@@ -30,9 +30,6 @@
 #define ENABLE_DEBUG    (0)
 #include "debug.h"
 
-/* guard in case that no ADC device is defined */
-#if ADC_NUMOF
-
 int adc_init(adc_t channel) {
 
     /*  Disable ADC Module before init. */
@@ -169,6 +166,3 @@ int adc_sample(adc_t channel, adc_res_t res){
     /* Return result. */
     return output;
 }
-
-
-#endif /* ADC_NUMOF */
