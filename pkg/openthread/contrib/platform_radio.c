@@ -283,28 +283,31 @@ otError otPlatRadioTransmit(otInstance *aInstance, otRadioFrame *aPacket)
     DEBUG("\n");*/
 
     int success = -1;
-    while(1) {
-        mutex_lock(openthread_get_radio_mutex());
-        printf("try->");
-        //_set_channel(aPacket->mChannel);
-        /* send packet though netdev */
-        success = _dev->driver->send(_dev, &pkt, 1);
-        printf("done %d\n", success);
-        if (success == -1) {
-            /* Fail to send since the transceiver is busy (receiving).
-             * Retry in a little bit. 
-             */
-            if (_get_state() != NETOPT_STATE_RX) {
-                _set_idle();
-            }
-            mutex_unlock(openthread_get_radio_mutex());
-            xtimer_usleep(1000+rand()%4000);
-        } else {
-            /* Succeed in sending */
-            mutex_unlock(openthread_get_radio_mutex());
-            break;
+    //while(1) {
+    mutex_lock(openthread_get_radio_mutex());
+    printf("try->");
+    //_set_channel(aPacket->mChannel);
+    /* send packet though netdev */
+    success = _dev->driver->send(_dev, &pkt, 1);
+    printf("done %d\n", success);
+    if (success == -1) {
+        /* Fail to send since the transceiver is busy (receiving).
+         * Retry in a little bit. 
+         */
+        if (_get_state() != NETOPT_STATE_RX) {
+            _set_idle();
         }
+        mutex_unlock(openthread_get_radio_mutex());
+        msg_t msg;
+        msg.type = OPENTHREAD_NETDEV_MSG_TYPE_RADIO_BUSY;
+        msg_send(&msg, openthread_get_task_pid());
+        //xtimer_usleep(1000+rand()%4000);
+    } else {
+        /* Succeed in sending */
+        mutex_unlock(openthread_get_radio_mutex());
+        //break;
     }
+    //}
 
     return OT_ERROR_NONE;
 }

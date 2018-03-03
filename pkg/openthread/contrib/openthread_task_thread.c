@@ -82,6 +82,12 @@ static void *_openthread_task_thread(void *arg) {
                 openthread_get_netdev()->driver->isr(openthread_get_netdev());
                 mutex_unlock(openthread_get_radio_mutex());
                 break;
+            case OPENTHREAD_NETDEV_MSG_TYPE_RADIO_BUSY:
+                /* Radio is busy */
+                DEBUG("\not_event: OPENTHREAD_NETDEV_MSG_TYPE_RADIO_BUSY received\n");
+                printf("\nfin->");
+                sent_pkt(openthread_get_instance(), NETDEV_EVENT_TX_MEDIUM_BUSY);
+                break;
         }
         while(otTaskletsArePending(openthread_get_instance())) {
 #ifdef MODULE_OPENTHREAD_FTD

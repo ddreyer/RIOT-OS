@@ -47,6 +47,8 @@ extern "C" {
 #define OPENTHREAD_SERIAL_MSG_TYPE_EVENT                    (0x2238)
 /**< event for frame reception and transmission complete */
 #define OPENTHREAD_NETDEV_MSG_TYPE_EVENT                    (0x2239)
+/**< event for radio busy */
+#define OPENTHREAD_NETDEV_MSG_TYPE_RADIO_BUSY               (0x2240)
 /**< event indicating an OT_JOB message */
 #define OPENTHREAD_JOB_MSG_TYPE_EVENT                       (0x2241)
 /**< number of serial reception buffer */
