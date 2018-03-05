@@ -27,7 +27,7 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-#define OPENTHREAD_TASK_QUEUE_LEN      (3)
+#define OPENTHREAD_TASK_QUEUE_LEN      (5)
 static msg_t _queue[OPENTHREAD_TASK_QUEUE_LEN];
 static kernel_pid_t _task_pid;
 
