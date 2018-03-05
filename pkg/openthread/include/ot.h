@@ -226,11 +226,7 @@ mutex_t* openthread_get_radio_mutex(void);
  *
  * @return  mutex for OpenThread radio
  */
-mutex_t* openthread_get_buffer_mutex(void);
-
-void openthread_event_thread_overflow_check(void);
-void openthread_preevent_thread_overflow_check(void);
-void openthread_task_thread_overflow_check(void);
+//mutex_t* openthread_get_buffer_mutex(void);
 
 /**
  * @brief   Init OpenThread random

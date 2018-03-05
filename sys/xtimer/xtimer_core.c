@@ -206,8 +206,8 @@ static inline void _lltimer_set(uint32_t target)
 int _xtimer_set_absolute(xtimer_t *timer, uint32_t target, uint32_t now)
 {
 #if (XTIMER_HZ < 1000000ul) && (STIMER_HZ >= 1000000ul)
-#else 
-    now = _xtimer_now();
+#else
+    //now = _xtimer_now();
 #endif
     int res = 0;
 
@@ -216,9 +216,10 @@ int _xtimer_set_absolute(xtimer_t *timer, uint32_t target, uint32_t now)
     unsigned state = irq_disable();
     timer->next = NULL;
     if ((target >= now) && ((target - XTIMER_BACKOFF) < now)) {
-        irq_restore(state);
         /* backoff */
-        xtimer_spin_until(target + XTIMER_BACKOFF);
+        irq_restore(state);
+        _xtimer_spin(target-now);
+        //xtimer_spin_until(target + XTIMER_BACKOFF);
         _shoot(timer);
         return 0;
     }

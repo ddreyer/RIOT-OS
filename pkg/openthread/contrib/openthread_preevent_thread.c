@@ -69,9 +69,6 @@ static void *_openthread_preevent_thread(void *arg) {
                 msg_send(&msg, openthread_get_event_pid());
                 break;
         }
-
-        /* Stack overflow check */
-        openthread_preevent_thread_overflow_check();
     }
 
     return NULL;

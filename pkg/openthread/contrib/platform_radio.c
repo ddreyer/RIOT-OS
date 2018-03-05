@@ -34,7 +34,7 @@
 #include "openthread/platform/radio.h"
 #include "ot.h"
 
-#define ENABLE_DEBUG (1)
+#define ENABLE_DEBUG (0)
 #include "debug.h"
 
 #define RADIO_IEEE802154_FCS_LEN    (2U)
@@ -49,6 +49,7 @@ static uint8_t tx_buf[OPENTHREAD_NETDEV_BUFLEN];
 static uint8_t ack_buf[IEEE802154_ACK_LENGTH];
 
 static struct iovec pkt;
+static msg_t msg;
 
 static int8_t Rssi;
 static netdev_t *_dev;
@@ -283,13 +284,10 @@ otError otPlatRadioTransmit(otInstance *aInstance, otRadioFrame *aPacket)
     DEBUG("\n");*/
 
     int success = -1;
-    //while(1) {
     mutex_lock(openthread_get_radio_mutex());
-    printf("try->");
     //_set_channel(aPacket->mChannel);
     /* send packet though netdev */
     success = _dev->driver->send(_dev, &pkt, 1);
-    printf("done %d\n", success);
     if (success == -1) {
         /* Fail to send since the transceiver is busy (receiving).
          * Retry in a little bit. 
@@ -297,17 +295,10 @@ otError otPlatRadioTransmit(otInstance *aInstance, otRadioFrame *aPacket)
         if (_get_state() != NETOPT_STATE_RX) {
             _set_idle();
         }
-        mutex_unlock(openthread_get_radio_mutex());
-        msg_t msg;
         msg.type = OPENTHREAD_NETDEV_MSG_TYPE_RADIO_BUSY;
-        msg_send(&msg, openthread_get_task_pid());
-        //xtimer_usleep(1000+rand()%4000);
-    } else {
-        /* Succeed in sending */
-        mutex_unlock(openthread_get_radio_mutex());
-        //break;
+        msg_send_to_self(&msg);
     }
-    //}
+    mutex_unlock(openthread_get_radio_mutex());
 
     return OT_ERROR_NONE;
 }
@@ -474,10 +465,7 @@ static inline void _create_fake_ack_frame(bool ackPending)
 /* Called upon TX event */
 void sent_pkt(otInstance *aInstance, netdev_event_t event)
 {
-    /*if (event == NETDEV_EVENT_TX_NOACK) {
-        xtimer_usleep(100000);
-    }*/
-    mutex_lock(openthread_get_buffer_mutex());
+    //mutex_lock(openthread_get_buffer_mutex());
     /* Tell OpenThread transmission is done depending on the NETDEV event */
     switch (event) {
         case NETDEV_EVENT_TX_COMPLETE:
@@ -501,7 +489,7 @@ void sent_pkt(otInstance *aInstance, netdev_event_t event)
         default:
             break;
     }
-    mutex_unlock(openthread_get_buffer_mutex());
+    //mutex_unlock(openthread_get_buffer_mutex());
 }
 
 /* Called upon NETDEV_EVENT_RX_COMPLETE event */
@@ -541,8 +529,8 @@ void recv_pkt(otInstance *aInstance, netdev_t *dev)
     }
     DEBUG("\n");*/
 exit:
-    mutex_lock(openthread_get_buffer_mutex());
+    //mutex_lock(openthread_get_buffer_mutex());
     otPlatRadioReceiveDone(aInstance, res > 0 ? &sReceiveFrame : NULL, 
                            res > 0 ? OT_ERROR_NONE : OT_ERROR_ABORT);
-    mutex_unlock(openthread_get_buffer_mutex()); 
+    //mutex_unlock(openthread_get_buffer_mutex()); 
 }
