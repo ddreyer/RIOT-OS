@@ -76,6 +76,9 @@ void _xtimer_periodic_wakeup(uint32_t *last_wakeup, uint32_t period) {
     timer.callback = _callback_unlock_mutex;
     timer.arg = (void*) &mutex;
 
+    while (1) {
+        printf("BAD!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+    }
     uint32_t target = (*last_wakeup) + period;
     uint32_t now = _xtimer_now();
     /* make sure we're not setting a value in the past */

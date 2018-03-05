@@ -66,7 +66,6 @@ static void _irq_handler(void *arg)
     if (dev->event_callback) {
 #ifdef MODULE_OPENTHREAD
         if (sending) {
-            sending = false;
             dev->event_callback(dev, NETDEV_EVENT_ISR2);
         } else {
             dev->event_callback(dev, NETDEV_EVENT_ISR);
@@ -120,6 +119,10 @@ static int _send(netdev_t *netdev, const struct iovec *vector, unsigned count)
         return -1;
     }
 
+    unsigned irq_state = irq_disable();
+    sending = true;
+    irq_restore(irq_state);
+
     /* load packet data into FIFO */
     for (unsigned i = 0; i < count; i++, ptr++) {
         /* current packet data + FCS too long */
@@ -134,13 +137,10 @@ static int _send(netdev_t *netdev, const struct iovec *vector, unsigned count)
         len = at86rf2xx_tx_load(dev, ptr->iov_base, ptr->iov_len, len);
     }
 
-    int irq_state = irq_disable();
-    sending = true;
     /* send data out directly if pre-loading id disabled */
     if (!(dev->netdev.flags & AT86RF2XX_OPT_PRELOADING)) {
         at86rf2xx_tx_exec(dev);
     }
-    irq_restore(irq_state);
 
     /* return the number of bytes that were actually send out */
     return (int)len;
@@ -612,6 +612,9 @@ static void _isr(netdev_t *netdev)
         }
         else if (state == AT86RF2XX_STATE_TX_ARET_ON ||
                  state == AT86RF2XX_STATE_BUSY_TX_ARET) {
+#ifdef MODULE_OPENTHREAD
+            sending = false;
+#endif
             /* check for more pending TX calls and return to idle state if
              * there are none */
             assert(dev->pending_tx != 0);

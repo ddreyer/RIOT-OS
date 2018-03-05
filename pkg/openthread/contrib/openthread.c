@@ -24,6 +24,7 @@
 #include "ot.h"
 #include "random.h"
 #include "xtimer.h"
+#include "irq.h"
 
 #ifdef MODULE_AT86RF2XX
 #include "at86rf2xx.h"
@@ -33,50 +34,98 @@
 #define ENABLE_DEBUG (1)
 #include "debug.h"
 
+static msg_t millitimer_msg;
 static xtimer_t ot_millitimer;
-volatile bool pending_millitimer_event = false;
 #ifdef MODULE_OPENTHREAD_FTD
+static msg_t microtimer_msg;
 static xtimer_t ot_microtimer;
-volatile bool pending_microtimer_event = false;
 #endif
 
 #ifdef MODULE_AT86RF2XX     /* is mutual exclusive with above ifdef */
 #define OPENTHREAD_NETIF_NUMOF        (sizeof(at86rf2xx_params) / sizeof(at86rf2xx_params[0]))
 static at86rf2xx_t at86rf2xx_dev;
 #endif
+static msg_t radio_rx_msg;
+static msg_t radio_tx_msg;
 
 static mutex_t radio_mutex = MUTEX_INIT;
 static mutex_t buffer_mutex = MUTEX_INIT;
+static mutex_t uart_buffer_mutex = MUTEX_INIT;
+static mutex_t tasklet_mutex = MUTEX_INIT;
+static bool ind_buffer_mutex = false;
+static bool ind_uart_buffer_mutex = false;
+static bool ind_tasklet_mutex = false;
+uint8_t pid_buffer_mutex = 0xff;
+uint8_t pid_uart_buffer_mutex = 0xff;
+uint8_t pid_tasklet_mutex = 0xff;
 
-static char ot_task_thread_stack[THREAD_STACKSIZE_MAIN+4];
-static char ot_event_thread_stack[THREAD_STACKSIZE_MAIN+1000+4];
-static char ot_preevent_thread_stack[THREAD_STACKSIZE_IDLE+4];
+static char ot_task_thread_stack[THREAD_STACKSIZE_MAIN+1024];
+static char ot_event_thread_stack[THREAD_STACKSIZE_MAIN+1024];
+static char ot_preevent_thread_stack[THREAD_STACKSIZE_IDLE];
 
-void openthread_event_thread_overflow_check(void) {
-    if (ot_event_thread_stack[0] != 0x42 || ot_event_thread_stack[1] != 0xA3 ||
-        ot_event_thread_stack[2] != 0x7B || ot_event_thread_stack[3] != 0x22) {
-        while(1) {
-            printf("event stack overflow!!\n");
-        }
+void print_active_pid(void) {
+    unsigned int pid = sched_active_pid;
+    if (pid == 5) {
+        printf("pid is 5\n");
     }
+    printf("pid %u\n", pid);
 }
 
-void openthread_preevent_thread_overflow_check(void) {
-    if (ot_preevent_thread_stack[0] != 0x11 || ot_preevent_thread_stack[1] != 0x73 ||
-        ot_preevent_thread_stack[2] != 0xBF || ot_preevent_thread_stack[3] != 0xD2) {
-        while(1) {
-            printf("preevent stack overflow!!\n");
-        }
-    }
-}
-
-void openthread_task_thread_overflow_check(void) {
-    if (ot_task_thread_stack[0] != 0x1E || ot_task_thread_stack[1] != 0x90 ||
-        ot_task_thread_stack[2] != 0x0C || ot_task_thread_stack[3] != 0x66) {
+/* lock Openthread buffer mutex */
+void openthread_lock_buffer_mutex(void) {
+    if (ind_buffer_mutex && sched_active_pid == pid_buffer_mutex) {
         while (1) {
-            printf("task stack overflow!!\n");
+            printf("********* Buffer MuTex Error ******\n");
         }
+    } else {
+        mutex_lock(&buffer_mutex);
+        pid_buffer_mutex = sched_active_pid;
+        ind_buffer_mutex = true;
     }
+}
+
+/* unlock Openthread buffer mutex */
+void openthread_unlock_buffer_mutex(void) {
+    ind_buffer_mutex = false;
+    mutex_unlock(&buffer_mutex);
+}
+
+/* lock Openthread buffer mutex */
+void openthread_lock_uart_buffer_mutex(void) {
+    if (ind_uart_buffer_mutex && sched_active_pid == pid_uart_buffer_mutex) {
+        while (1) {
+            printf("******* UART MuTex Error ********\n");
+        }
+    } else {
+        mutex_lock(&uart_buffer_mutex);
+        pid_uart_buffer_mutex = sched_active_pid;
+        ind_uart_buffer_mutex = true;
+    }
+}
+
+/* unlock Openthread buffer mutex */
+void openthread_unlock_uart_buffer_mutex(void) {
+    ind_uart_buffer_mutex = false;
+    mutex_unlock(&uart_buffer_mutex);
+}
+
+/* lock Openthread tasklet mutex */
+void openthread_lock_tasklet_mutex(void) {
+    if (ind_tasklet_mutex && sched_active_pid == pid_tasklet_mutex) {
+        while (1) {
+            printf("******* Task MuTex Error ********\n");
+        }
+    } else {
+        mutex_lock(&tasklet_mutex);
+        pid_tasklet_mutex = sched_active_pid;
+        ind_tasklet_mutex = true;
+    }
+}
+
+/* unlock Openthread tasklet mutex */
+void openthread_unlock_tasklet_mutex(void) {
+    ind_tasklet_mutex = false;
+    mutex_unlock(&tasklet_mutex);
 }
 
 /* get Openthread radio mutex */
@@ -85,9 +134,9 @@ mutex_t* openthread_get_radio_mutex(void) {
 }
 
 /* get Openthread buffer mutex */
-mutex_t* openthread_get_buffer_mutex(void) {
+/*mutex_t* openthread_get_buffer_mutex(void) {
     return &buffer_mutex;
-}
+}*/
 
 /* get OpenThread netdev */
 netdev_t* openthread_get_netdev(void) {
@@ -101,11 +150,11 @@ xtimer_t* openthread_get_millitimer(void) {
 
 /* Interupt handler for OpenThread milli-timer event */
 static void _millitimer_cb(void* arg) {
-    msg_t msg;
-	msg.type = OPENTHREAD_MILLITIMER_MSG_TYPE_EVENT;
-	if (msg_send(&msg, openthread_get_preevent_pid()) <= 0) {
-        //assert(false);
-        printf("ot_preevent: possibly lost timer interrupt.\n");
+    millitimer_msg.type = OPENTHREAD_MILLITIMER_MSG_TYPE_EVENT;
+	if (msg_send(&millitimer_msg, openthread_get_preevent_pid()) <= 0) {
+        while (1) {
+            printf("ot_preevent: possibly lost timer interrupt.\n");
+        }
     }
 }
 
@@ -117,29 +166,30 @@ xtimer_t* openthread_get_microtimer(void) {
 
 /* Interupt handler for OpenThread micro-timer event */
 static void _microtimer_cb(void* arg) {
-    msg_t msg;
-	msg.type = OPENTHREAD_MICROTIMER_MSG_TYPE_EVENT;
-	if (msg_send(&msg, openthread_get_task_pid()) <= 0) {
-        //assert(false);
-        printf("ot_task: possibly lost timer interrupt.\n");
+   	microtimer_msg.type = OPENTHREAD_MICROTIMER_MSG_TYPE_EVENT;
+	if (msg_send(&microtimer_msg, openthread_get_task_pid()) <= 0) {
+        while(1) {
+            printf("ot_task: possibly lost timer interrupt.\n");
+        }
     }
 }
 #endif
+
+
 
 /* Interupt handler for OpenThread event thread */
 static void _event_cb(netdev_t *dev, netdev_event_t event) {
     switch (event) {
         case NETDEV_EVENT_ISR:
             {
-                msg_t msg;
-                msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
-                msg.content.ptr = dev;
+                radio_rx_msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
+                radio_rx_msg.content.ptr = dev;
 #ifdef MODULE_OPENTHREAD_FTD
                 unsigned irq_state = irq_disable();
                 ((at86rf2xx_t *)dev)->pending_irq++;
                 irq_restore(irq_state);
 #endif
-                if (msg_send(&msg, openthread_get_event_pid()) <= 0) {
+                if (msg_send(&radio_rx_msg, openthread_get_event_pid()) <= 0) {
                     printf("ot_event: possibly lost radio interrupt.\n");
 #ifdef MODULE_OPENTHREAD_FTD
                     unsigned irq_state = irq_disable();
@@ -151,24 +201,28 @@ static void _event_cb(netdev_t *dev, netdev_event_t event) {
             }
         case NETDEV_EVENT_ISR2:
             {
-                msg_t msg;
-                msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
-                msg.content.ptr = dev;
-                if (msg_send(&msg, openthread_get_task_pid()) <= 0) {
-                    //assert(false);
-                    printf("ot_task: possibly lost radio interrupt.\n");
+                radio_tx_msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
+                radio_tx_msg.content.ptr = dev;
+                if (msg_send(&radio_tx_msg, openthread_get_task_pid()) <= 0) {
+                    while (1) {
+                        printf("ot_task: possibly lost radio interrupt.\n");
+                    }
                 }
                 break;
             }
         case NETDEV_EVENT_RX_COMPLETE:
-            //assert(thread_get_pid() == openthread_get_event_pid());
+            if (thread_getpid() != openthread_get_event_pid()) {
+                 printf("recv: critical error\n");
+            }
             recv_pkt(openthread_get_instance(), dev);
             break;
         case NETDEV_EVENT_TX_COMPLETE:
         case NETDEV_EVENT_TX_COMPLETE_DATA_PENDING:
         case NETDEV_EVENT_TX_NOACK:
         case NETDEV_EVENT_TX_MEDIUM_BUSY:
-            //assert(thread_get_pid() == openthread_get_event_pid()); 
+            if (thread_getpid() != openthread_get_task_pid()) {
+                 printf("tx_done: critical error\n");
+            }
             sent_pkt(openthread_get_instance(), event);
             break;
         default:
@@ -202,19 +256,6 @@ void openthread_bootstrap(void)
 #ifdef MODULE_OPENTHREAD_FTD
     ot_microtimer.callback = _microtimer_cb;
 #endif
-
-    ot_event_thread_stack[0] = 0x42;
-    ot_event_thread_stack[1] = 0xA3;
-    ot_event_thread_stack[2] = 0x7B;
-    ot_event_thread_stack[3] = 0x22;
-    ot_preevent_thread_stack[0] = 0x11;
-    ot_preevent_thread_stack[1] = 0x73;
-    ot_preevent_thread_stack[2] = 0xBF;
-    ot_preevent_thread_stack[3] = 0xD2;
-    ot_task_thread_stack[0] = 0x1E;
-    ot_task_thread_stack[1] = 0x90;
-    ot_task_thread_stack[2] = 0x0C;
-    ot_task_thread_stack[3] = 0x66;
 
     /* setup netdev modules */
 #ifdef MODULE_AT86RF2XX

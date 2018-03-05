@@ -45,10 +45,8 @@ void otPlatAlarmMilliStartAt(otInstance *aInstance, uint32_t aT0, uint32_t aDt)
 {
     DEBUG("otPlatAlarmMilliStartAt: aT0: %" PRIu32 ", aDT: %" PRIu32 "\n", aT0, aDt);
     
-    if (aDt > 0) {
-        uint32_t dt = aDt * US_PER_MS;
-        xtimer_set(openthread_get_millitimer(), dt);
-    }
+    uint32_t dt = aDt * US_PER_MS;
+    xtimer_set(openthread_get_millitimer(), dt);
 }
 
 /* OpenThread will call this to stop alarms */
@@ -84,15 +82,7 @@ uint32_t otPlatAlarmMilliGetNow(void)
 void otPlatAlarmMicroStartAt(otInstance *aInstance, uint32_t aT0, uint32_t aDt)
 {
     DEBUG("otPlatAlarmMicroStartAt: aT0: %" PRIu32 ", aDT: %" PRIu32 "\n", aT0, aDt);
-    if (aDt <= 1) {
-        xtimer_remove(openthread_get_microtimer());
-        msg_t msg;
-        msg.type = OPENTHREAD_MICROTIMER_MSG_TYPE_EVENT;
-        msg_try_send(&msg, openthread_get_task_pid());
-    }
-    else {
-        xtimer_set(openthread_get_microtimer(), aDt);
-    }
+    xtimer_set(openthread_get_microtimer(), aDt);
 }
 
 /* OpenThread will call this to stop alarms */

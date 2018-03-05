@@ -44,7 +44,6 @@ static msg_t _queue[OPENTHREAD_EVENT_QUEUE_LEN];
 static kernel_pid_t _event_pid;
 
 static otInstance *sInstance;
-static bool otTaskPending = false;
 
 /* get OpenThread instance */
 otInstance* openthread_get_instance(void) {
@@ -61,7 +60,6 @@ void otTaskletsSignalPending(otInstance *aInstance) {
     (void) aInstance;
     /* 1) Triggered in OpenThread Event Thread: just indicator update */
     if (thread_getpid() == openthread_get_event_pid()) {
-        otTaskPending = true;
         msg_t msg;
         msg.type = OPENTHREAD_TASK_MSG_TYPE_EVENT;
         msg_try_send(&msg, openthread_get_task_pid()); 
@@ -128,7 +126,6 @@ static void *_openthread_event_thread(void *arg) {
 
     while (1) {
         msg_receive(&msg);
-        //printf("\not_event start\n");
         switch (msg.type) {
             case OPENTHREAD_NETDEV_MSG_TYPE_EVENT:
                 /* Received an event from radio driver */
@@ -146,9 +143,9 @@ static void *_openthread_event_thread(void *arg) {
             case OPENTHREAD_MILLITIMER_MSG_TYPE_EVENT:
                 /* Tell OpenThread a millisec time event was received */
                 DEBUG("\not_event: OPENTHREAD_MILLITIMER_MSG_TYPE_EVENT received\n");
-                mutex_lock(openthread_get_buffer_mutex());
+                //mutex_lock(openthread_get_buffer_mutex());
                 otPlatAlarmMilliFired(sInstance);
-                mutex_unlock(openthread_get_buffer_mutex());
+                //mutex_unlock(openthread_get_buffer_mutex());
                 break;
             case OPENTHREAD_SERIAL_MSG_TYPE_EVENT:
                 /* Tell OpenThread about the reception of a CLI command */
@@ -167,14 +164,6 @@ static void *_openthread_event_thread(void *arg) {
                 msg_reply(&msg, &reply);
                 break;
         }
-        
-        /* Execute this just in case a timer event is missed */
-        mutex_lock(openthread_get_buffer_mutex());
-        otPlatAlarmMilliFired(sInstance);
-        mutex_unlock(openthread_get_buffer_mutex());
-             
-        /* Stack overflow check */
-        openthread_event_thread_overflow_check();
     }
 
     return NULL;

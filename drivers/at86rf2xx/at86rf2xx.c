@@ -189,7 +189,7 @@ bool at86rf2xx_tx_prepare(at86rf2xx_t *dev)
         return false;
     }
 
-    int irq_state = irq_disable();
+    unsigned irq_state = irq_disable();
     if (dev->pending_irq != 0) {
         irq_restore(irq_state);
         dev->pending_tx--;
