@@ -31,9 +31,9 @@
 #endif
 
 #ifdef MODULE_OPENTHREAD_NCP_FTD
-#define ENABLE_DEBUG (1)
+#define ENABLE_DEBUG (0)
 #else
-#define ENABLE_DEBUG (1)
+#define ENABLE_DEBUG (0)
 #endif
 #include <debug.h>
 

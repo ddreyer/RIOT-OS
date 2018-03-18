@@ -48,20 +48,15 @@ static at86rf2xx_t at86rf2xx_dev;
 static msg_t radio_rx_msg;
 static msg_t radio_tx_msg;
 
-static mutex_t radio_mutex = MUTEX_INIT;
 static mutex_t buffer_mutex = MUTEX_INIT;
-static mutex_t uart_buffer_mutex = MUTEX_INIT;
 static mutex_t tasklet_mutex = MUTEX_INIT;
 static bool ind_buffer_mutex = false;
-static bool ind_uart_buffer_mutex = false;
 static bool ind_tasklet_mutex = false;
 uint8_t pid_buffer_mutex = 0xff;
-uint8_t pid_uart_buffer_mutex = 0xff;
 uint8_t pid_tasklet_mutex = 0xff;
 
-static char ot_task_thread_stack[THREAD_STACKSIZE_MAIN+1024];
-static char ot_event_thread_stack[THREAD_STACKSIZE_MAIN+1024];
-static char ot_preevent_thread_stack[THREAD_STACKSIZE_IDLE];
+static char ot_event_thread_stack[THREAD_STACKSIZE_MAIN*2];
+static char ot_preevent_thread_stack[THREAD_STACKSIZE_MAIN];
 
 void print_active_pid(void) {
     unsigned int pid = sched_active_pid;
@@ -92,21 +87,10 @@ void openthread_unlock_buffer_mutex(void) {
 
 /* lock Openthread buffer mutex */
 void openthread_lock_uart_buffer_mutex(void) {
-    if (ind_uart_buffer_mutex && sched_active_pid == pid_uart_buffer_mutex) {
-        while (1) {
-            printf("******* UART MuTex Error ********\n");
-        }
-    } else {
-        mutex_lock(&uart_buffer_mutex);
-        pid_uart_buffer_mutex = sched_active_pid;
-        ind_uart_buffer_mutex = true;
-    }
 }
 
 /* unlock Openthread buffer mutex */
 void openthread_unlock_uart_buffer_mutex(void) {
-    ind_uart_buffer_mutex = false;
-    mutex_unlock(&uart_buffer_mutex);
 }
 
 /* lock Openthread tasklet mutex */
@@ -127,16 +111,6 @@ void openthread_unlock_tasklet_mutex(void) {
     ind_tasklet_mutex = false;
     mutex_unlock(&tasklet_mutex);
 }
-
-/* get Openthread radio mutex */
-mutex_t* openthread_get_radio_mutex(void) {
-    return &radio_mutex;
-}
-
-/* get Openthread buffer mutex */
-/*mutex_t* openthread_get_buffer_mutex(void) {
-    return &buffer_mutex;
-}*/
 
 /* get OpenThread netdev */
 netdev_t* openthread_get_netdev(void) {
@@ -167,15 +141,13 @@ xtimer_t* openthread_get_microtimer(void) {
 /* Interupt handler for OpenThread micro-timer event */
 static void _microtimer_cb(void* arg) {
    	microtimer_msg.type = OPENTHREAD_MICROTIMER_MSG_TYPE_EVENT;
-	if (msg_send(&microtimer_msg, openthread_get_task_pid()) <= 0) {
+	if (msg_send(&microtimer_msg, openthread_get_preevent_pid()) <= 0) {
         while(1) {
-            printf("ot_task: possibly lost timer interrupt.\n");
+            printf("ot_preevent: possibly lost timer interrupt.\n");
         }
     }
 }
 #endif
-
-
 
 /* Interupt handler for OpenThread event thread */
 static void _event_cb(netdev_t *dev, netdev_event_t event) {
@@ -203,7 +175,7 @@ static void _event_cb(netdev_t *dev, netdev_event_t event) {
             {
                 radio_tx_msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
                 radio_tx_msg.content.ptr = dev;
-                if (msg_send(&radio_tx_msg, openthread_get_task_pid()) <= 0) {
+                if (msg_send(&radio_tx_msg, openthread_get_preevent_pid()) <= 0) {
                     while (1) {
                         printf("ot_task: possibly lost radio interrupt.\n");
                     }
@@ -211,18 +183,19 @@ static void _event_cb(netdev_t *dev, netdev_event_t event) {
                 break;
             }
         case NETDEV_EVENT_RX_COMPLETE:
-            if (thread_getpid() != openthread_get_event_pid()) {
-                 printf("recv: critical error\n");
+            {
+#ifdef MODULE_OPENTHREAD_FTD
+                unsigned state = irq_disable();
+                ((at86rf2xx_t *)openthread_get_netdev())->pending_irq--;
+                irq_restore(state);
+#endif
+                recv_pkt(openthread_get_instance(), dev);
+                break;
             }
-            recv_pkt(openthread_get_instance(), dev);
-            break;
         case NETDEV_EVENT_TX_COMPLETE:
         case NETDEV_EVENT_TX_COMPLETE_DATA_PENDING:
         case NETDEV_EVENT_TX_NOACK:
         case NETDEV_EVENT_TX_MEDIUM_BUSY:
-            if (thread_getpid() != openthread_get_task_pid()) {
-                 printf("tx_done: critical error\n");
-            }
             sent_pkt(openthread_get_instance(), event);
             break;
         default:
@@ -276,9 +249,7 @@ void openthread_bootstrap(void)
 
     /* init three threads for openthread */
     openthread_preevent_init(ot_preevent_thread_stack, sizeof(ot_preevent_thread_stack),
-                         THREAD_PRIORITY_MAIN - 3, "openthread_preevent"); 
-    openthread_task_init(ot_task_thread_stack, sizeof(ot_task_thread_stack),
-                         THREAD_PRIORITY_MAIN - 1, "openthread_task"); 
+                         THREAD_PRIORITY_MAIN - 2, "openthread_preevent"); 
     openthread_event_init(ot_event_thread_stack, sizeof(ot_event_thread_stack),
-                         THREAD_PRIORITY_MAIN - 2, "openthread_event"); 
+                         THREAD_PRIORITY_MAIN - 1, "openthread_event"); 
 }

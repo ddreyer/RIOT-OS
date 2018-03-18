@@ -21,7 +21,7 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-#define OPENTHREAD_PREEVENT_QUEUE_LEN (1)
+#define OPENTHREAD_PREEVENT_QUEUE_LEN (4)
 static msg_t _queue[OPENTHREAD_PREEVENT_QUEUE_LEN];
 static kernel_pid_t _preevent_pid;
 
@@ -66,6 +66,27 @@ static void *_openthread_preevent_thread(void *arg) {
                 /* Tell event_thread a time event was received */
                 DEBUG("ot_preevent: OPENTHREAD_MILLITIMER_MSG_TYPE_EVENT received\n");
                 msg.type = OPENTHREAD_MILLITIMER_MSG_TYPE_EVENT;
+                msg_send(&msg, openthread_get_event_pid());
+                break;
+#ifdef MODULE_OPENTHREAD_FTD
+            case OPENTHREAD_MICROTIMER_MSG_TYPE_EVENT:
+                /* Tell OpenThread a microsec time event was received (CSMA timer)
+                 * only expired timers. */
+                DEBUG("\not_task: OPENTHREAD_MICROTIMER_MSG_TYPE_EVENT received\n");
+                msg.type = OPENTHREAD_MICROTIMER_MSG_TYPE_EVENT;
+                msg_send(&msg, openthread_get_event_pid());
+                break;
+#endif
+            case OPENTHREAD_NETDEV_MSG_TYPE_EVENT:
+                /* Received an event from radio driver */
+                DEBUG("\not_event: OPENTHREAD_NETDEV_MSG_TYPE_EVENT received\n");
+                msg.type = OPENTHREAD_NETDEV_MSG_TYPE_EVENT;
+                msg_send(&msg, openthread_get_event_pid());
+                break;
+            case OPENTHREAD_NETDEV_MSG_TYPE_RADIO_BUSY:
+                /* Received an event from radio driver */
+                DEBUG("\not_event: OPENTHREAD_NETDEV_MSG_TYPE_EVENT received\n");
+                msg.type = OPENTHREAD_NETDEV_MSG_TYPE_RADIO_BUSY;
                 msg_send(&msg, openthread_get_event_pid());
                 break;
         }

@@ -151,19 +151,6 @@ int openthread_preevent_init(char *stack, int stacksize, char priority, const ch
 int openthread_event_init(char *stack, int stacksize, char priority, const char *name);
 
 /**
- * @brief   Starts OpenThread Task Thread.
- *
- * @param[in]  stack              pointer to the stack designed for OpenThread Task Thread
- * @param[in]  stacksize          size of the stack
- * @param[in]  priority           priority of the stack
- * @param[in]  name               name of the stack
- *
- * @return  PID of OpenThread Task Thread
- * @return  -EINVAL if there was an error creating the thread
- */
-int openthread_task_init(char *stack, int stacksize, char priority, const char *name);
-
-/**
  * @brief   get PID of OpenThread Preevent thread.
  *
  * @return  PID of OpenThread Preevent thread
@@ -176,13 +163,6 @@ kernel_pid_t openthread_get_preevent_pid(void);
  * @return  PID of OpenThread Event Thread
  */
 kernel_pid_t openthread_get_event_pid(void);
-
-/**
- * @brief   get PID of OpenThread Task Thread.
- *
- * @return  PID of OpenThread Task Thread
- */
-kernel_pid_t openthread_get_task_pid(void);
 
 /**
  * @brief   get instance of OpenThread.
@@ -213,20 +193,6 @@ xtimer_t* openthread_get_microtimer(void);
  * @return  netdev of OpenThread
  */
 netdev_t* openthread_get_netdev(void);
-
-/**
- * @brief   get buffer mutex of OpenThread.
- *
- * @return  mutex for OpenThread buffer
- */
-mutex_t* openthread_get_radio_mutex(void);
-
-/**
- * @brief   get radio mutex of OpenThread.
- *
- * @return  mutex for OpenThread radio
- */
-//mutex_t* openthread_get_buffer_mutex(void);
 
 /**
  * @brief   Init OpenThread random
