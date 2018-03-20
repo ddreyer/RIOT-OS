@@ -49,7 +49,6 @@ static uint8_t tx_buf[OPENTHREAD_NETDEV_BUFLEN];
 static uint8_t ack_buf[IEEE802154_ACK_LENGTH];
 
 static struct iovec pkt;
-static msg_t msg;
 
 static int8_t Rssi;
 static netdev_t *_dev;
@@ -282,12 +281,12 @@ otError otPlatRadioTransmit(otInstance *aInstance, otRadioFrame *aPacket)
         DEBUG("%x ", aPacket->mPsdu[i]);
     }
     DEBUG("\n");*/
-
     int success = -1;
     mutex_lock(openthread_get_radio_mutex());
     //_set_channel(aPacket->mChannel);
     /* send packet though netdev */
     success = _dev->driver->send(_dev, &pkt, 1);
+#ifdef MODULE_OPENTHREAD_FTD
     if (success == -1) {
         /* Fail to send since the transceiver is busy (receiving).
          * Retry in a little bit. 
@@ -295,9 +294,15 @@ otError otPlatRadioTransmit(otInstance *aInstance, otRadioFrame *aPacket)
         if (_get_state() != NETOPT_STATE_RX) {
             _set_idle();
         }
+        msg_t msg;
         msg.type = OPENTHREAD_NETDEV_MSG_TYPE_RADIO_BUSY;
         msg_send_to_self(&msg);
     }
+#else
+    while (success == -1) {
+        success = _dev->driver->send(_dev, &pkt, 1);
+    }
+#endif
     mutex_unlock(openthread_get_radio_mutex());
 
     return OT_ERROR_NONE;
