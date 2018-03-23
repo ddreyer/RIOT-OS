@@ -28,7 +28,7 @@ extern "C" {
  *
  * The number of message buffers in buffer pool
  */
-#define OPENTHREAD_CONFIG_MESSAGE_BUFFER_SIZE 160
+//#define OPENTHREAD_CONFIG_MESSAGE_BUFFER_SIZE 160
 
 #if OPENTHREAD_ENABLE_NCP_UART
 #define OPENTHREAD_CONFIG_NUM_MESSAGE_BUFFERS       20
