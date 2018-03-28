@@ -124,6 +124,20 @@ void at86rf2xx_reset(at86rf2xx_t *dev)
     at86rf2xx_set_csma_backoff_exp(dev, 0, 0);
 #endif
 
+#if SMART_IDLE_LISTENING
+    tmp = at86rf2xx_reg_read(dev, AT86RF2XX_REG__TRX_RPC);
+    tmp |= AT86RF2XX_TRX_RPC_MASK__RX_RPC_EN;
+    tmp |= AT86RF2XX_TRX_RPC_MASK__PDT_RPC_EN;
+    tmp |= AT86RF2XX_TRX_RPC_MAKK__PLL_RPC_EN;
+    tmp |= AT86RF2XX_TRX_RPC_MASK__XAH_TX_RPC_EN;
+    tmp |= AT86RF2XX_TRX_RPC_MASK__IPAN_RPC_EN;
+    at86rf2xx_reg_write(dev, AT86RF2XX_REG__TRX_RPC, tmp);
+
+    tmp = at86rf2xx_reg_read(dev, AT86RF2XX_REG__RX_SYN);
+    tmp |= 1;
+    at86rf2xx_reg_write(dev, AT86RF2XX_REG__RX_SYN, tmp);
+#endif
+
 #if HIGH_DATA_RATE
     /* provide 32us ACK time */
     tmp = at86rf2xx_reg_read(dev, AT86RF2XX_REG__XAH_CTRL_1);
