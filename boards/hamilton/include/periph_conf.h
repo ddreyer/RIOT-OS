@@ -94,6 +94,12 @@ extern "C" {
 #define CLOCK_DIV            (1)
 #define CLOCK_CORECLOCK      (48000000U / CLOCK_DIV)
 #define CLOCK_OSCULP32K      32768U
+#elif CLOCK_USE_ADAPTIVE
+#define CLOCK_CORECLOCK_HIGH 48000000U
+#define CLOCK_CORECLOCK      8000000U
+#define CLOCK_OSCULP32K      32768U
+#define CLOCK_8MHZ           (1)
+#define GEN2_ULP32K          (1)
 #else
 #define CLOCK_8MHZ           (1)
 #define GEN2_ULP32K          (1)
