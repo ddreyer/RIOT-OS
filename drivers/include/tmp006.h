@@ -80,6 +80,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "periph/i2c.h"
+#include "board.h"
 
 #ifdef __cplusplus
 extern "C"

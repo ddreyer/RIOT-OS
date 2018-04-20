@@ -1,0 +1,15 @@
+ifneq (,$(filter gnrc_netdev_default netdev_default,$(USEMODULE)))
+  USEMODULE += at86rf233
+  USEMODULE += auto_init_gnrc_netif
+endif
+
+ifneq (,$(filter saul_default,$(USEMODULE)))
+  USEMODULE += saul_gpio
+  USEMODULE += hdc1000
+  USEMODULE += tmp006
+  USEMODULE += pulse_counter
+  # ToDo: peripherals to be added in the future
+  #USEMODULE += pir
+  #USEMODULE += fxos8700
+  #USEMODULE += apds9007
+endif
