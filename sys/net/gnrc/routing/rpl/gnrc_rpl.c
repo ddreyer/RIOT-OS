@@ -26,7 +26,7 @@
 #include "net/gnrc/rpl/p2p_dodag.h"
 #endif
 
-#define ENABLE_DEBUG    (0)
+#define ENABLE_DEBUG    (1)
 #include "debug.h"
 
 static char _stack[GNRC_RPL_STACK_SIZE];
@@ -54,6 +54,7 @@ static void *_event_loop(void *args);
 
 kernel_pid_t gnrc_rpl_init(kernel_pid_t if_pid)
 {
+    DEBUG("RPL: calling gnrc_rpl_init\n");
     /* check if RPL was initialized before */
     if (gnrc_rpl_pid == KERNEL_PID_UNDEF) {
         _instance_id = 0;
