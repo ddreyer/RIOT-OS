@@ -141,6 +141,8 @@ bool gnrc_rpl_parent_add_by_addr(gnrc_rpl_dodag_t *dodag, ipv6_addr_t *addr,
  */
 bool gnrc_rpl_parent_remove(gnrc_rpl_parent_t *parent);
 
+extern int parent_change_cntr;
+
 /**
  * @brief   Update a @p parent of the @p dodag.
  *

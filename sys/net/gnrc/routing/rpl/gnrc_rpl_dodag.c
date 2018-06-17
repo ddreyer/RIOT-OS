@@ -34,6 +34,7 @@
 
 #if ENABLE_DEBUG
 static char addr_str[IPV6_ADDR_MAX_STR_LEN];
+int parent_change_cntr = 0;
 #endif
 
 static gnrc_rpl_parent_t *_gnrc_rpl_find_preferred_parent(gnrc_rpl_dodag_t *dodag);
@@ -317,6 +318,9 @@ static gnrc_rpl_parent_t *_gnrc_rpl_find_preferred_parent(gnrc_rpl_dodag_t *doda
     }
 
     if (new_best != old_best) {
+#if ENABLE_DEBUG
+        parent_change_cntr++;
+#endif
         /* no-path DAOs only for the storing mode */
         if ((dodag->instance->mop == GNRC_RPL_MOP_STORING_MODE_NO_MC) ||
             (dodag->instance->mop == GNRC_RPL_MOP_STORING_MODE_MC)) {
